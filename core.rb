@@ -109,7 +109,8 @@ class Keyword < Model
   has_many :dialogue
 
   def meet_requirements?
-    EvalEnv.eval requirement, p: Character.find(1), n: Character.find(character_id)
+    result = EvalEnv.eval requirement, p: Character.find(1), n: Character.find(character_id)
+    result == false ? false : true
   end
 end
 
