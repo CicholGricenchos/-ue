@@ -50,12 +50,23 @@ class Model
 
   # getting data
   def method_missing name
-    @data[name]
+    return @data[name] if @data[name]
+    raise "undefined method #{name} of #{self}"
   end
 
   def inspect
     str = @data.reject{|k| k == :id}.map{|k,v| ":#{k}=>#{v.inspect}"}.join ', '
     "#<#{self.class.name}##{@data[:id].to_s.rjust(4,'0')} {#{str}}>"
+  end
+
+  def to_s
+    str = @data.reject{|k| k == :id}.map{|k,v| ":#{k}=>#{v.to_s}"}.join ', '
+    "#<#{self.class.name}##{@data[:id].to_s.rjust(4,'0')} {#{str}}>"
+  end
+
+  # for puts
+  def to_ary
+    [self.to_s]
   end
 
   class Result < Array
@@ -64,23 +75,42 @@ class Model
       when String
         # an SQL parser is needed here
       when Hash
-        self.select{|x| param.all?{|k,v| x.send(k) == v}}
+        Result.new self.select{|x| param.all?{|k,v| x.send(k) == v}}
       end
+    end
+
+    def method_missing name, *arr, &block
+      self.first.public_send(name, *arr, &block) and return if self.size == 1
+      raise "undefined method #{name} of #{self}"
     end
 
   end
 
 end
 
+EvalEnv = Object.new
+class << EvalEnv
+  def eval expr, params={}
+    params.each{|k,v| define_singleton_method(k){v}}
+    instance_eval expr
+  end
+end
 
 class Character < Model
   has_many :keyword
-
+  
+  def player?
+    id == 1
+  end
 end
 
 class Keyword < Model
   belongs_to :character
   has_many :dialogue
+
+  def meet_requirements?
+    EvalEnv.eval requirement, p: Character.find(1), n: Character.find(character_id)
+  end
 end
 
 class Dialogue < Model
