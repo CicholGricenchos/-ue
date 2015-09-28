@@ -7,7 +7,7 @@ class Model
 
     def has_many n
       define_method n do |param=nil|
-        result = Result.new Model.const_get(n.capitalize).all_items.select{|x| x.send("#{self.class.name.downcase}_id") == self.id}
+        result = Result.new Model.const_get(n.capitalize).all_items.select{|x| x.send("#{self.class.name.downcase}_id") == self.id}, Model.const_get(n.capitalize)
         param.nil? ? result : result.find(param)
       end
     end
@@ -31,7 +31,7 @@ class Model
     end
 
     def all
-      Result.new @all_items
+      Result.new @all_items, self
     end
 
     def find param
@@ -70,18 +70,29 @@ class Model
   end
 
   class Result < Array
+    attr_accessor :type
     def find param
       case param
       when String
         # an SQL parser is needed here
       when Hash
-        Result.new self.select{|x| param.all?{|k,v| x.send(k) == v}}
+        Result.new self.select{|x| param.all?{|k,v| x.send(k) == v}}, self.type
       end
     end
 
+    def initialize arr, type
+      @type = type
+      super arr
+    end
+
     def method_missing name, *arr, &block
-      self.first.public_send(name, *arr, &block) and return if self.size == 1
-      raise "undefined method #{name} of #{self}"
+      if self.type.respond_to? name
+        self.type.public_send(name, self)
+      elsif self.size == 1
+        self.first.public_send(name, *arr, &block)
+      else
+        raise "undefined method #{name} of #{self}"
+      end
     end
 
   end
@@ -116,4 +127,7 @@ end
 
 class Dialogue < Model
   belongs_to :keyword
+  def self.perform arr
+    arr.each{|x| puts x.content}
+  end
 end
