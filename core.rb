@@ -6,8 +6,9 @@ class Model
     attr_accessor :all_items
 
     def has_many n
-      define_method n do
-        Result.new Model.const_get(n.capitalize).all_items.select{|x| x.send("#{self.class.name.downcase}_id") == self.id}
+      define_method n do |param=nil|
+        result = Result.new Model.const_get(n.capitalize).all_items.select{|x| x.send("#{self.class.name.downcase}_id") == self.id}
+        param.nil? ? result : result.find(param)
       end
     end
 
@@ -17,8 +18,12 @@ class Model
       end
     end
 
+    def load_from_hash arr
+      arr.each{|h| self.new h }
+    end
+
     def marshal_load
-      Marshal.load(File.open("#{self.name}.data"){|f| f.read }).each{|h| self.new h }
+      load_from_hash Marshal.load(File.open("#{self.name}.data"){|f| f.read })
     end
 
     def marshal_dump
@@ -30,6 +35,7 @@ class Model
     end
 
     def find param
+      return self.all.find(id: param).first if param.is_a? Fixnum
       self.all.find param
     end
 
@@ -74,16 +80,9 @@ end
 
 class Keyword < Model
   belongs_to :character
-
+  has_many :dialogue
 end
 
-#c = Character.new(name: 'abc')
-#k = [1,2,3].collect{|x| Keyword.new(name: x, character_id: 1)}
-#Keyword.new(name: 'afsadfasfasd', character_id: 1)
-
-#Character.marshal_dump
-#Keyword.marshal_dump
-
-Keyword.marshal_load
-Character.marshal_load
-p Keyword.all.first.character
+class Dialogue < Model
+  belongs_to :keyword
+end
