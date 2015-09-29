@@ -20,6 +20,7 @@ class Model
 
     def load_from_hash arr
       arr.each{|h| self.new h }
+      all_items.freeze
     end
 
     def marshal_load
@@ -39,6 +40,7 @@ class Model
       self.all.find param
     end
 
+    alias :[] :find
   end
 
   def initialize data
@@ -96,11 +98,69 @@ class << EvalEnv
   end
 end
 
+State = Hash.new
+class << CheckPoint
+  def marshal_load
+    self.clear.merge Marshal.load(File.open("State.data"){|f| f.read })
+  end
+
+  def marshal_dump
+    File.open("State.data", 'wb'){|f| f.write Marshal.dump(self)}
+  end
+end
+
+class Drama < Model
+  attr_accessor :current_line, :check_points
+  has_many :line
+
+  def initialize data
+    super
+    @check_points = self.lines.map.with_index{|x, i| i if x.actor == 'check_point'}.compact.unshift 0
+  end
+
+  def to_check_point n
+    @current_line = check_points[n]
+  end
+
+  def perform
+    until self.ended?
+      case @current_line.actor
+      when 'system'
+        EvalEnv.eval line.content, p: character[1]
+      when 'check_point'
+        State[:drama][id] = @check_points.index @current_line
+        break
+      else
+        # perform dialogue
+      end
+      @current_line += 1
+    end
+  end
+
+  def ended?
+    @current_line == lines.size - 1
+  end
+
+  def started?
+    !CheckPoint[:drama][id].nil?
+  end
+
+end
+
+class Line < Model
+  belongs_to :drama
+
+end
+
 class Character < Model
   has_many :keyword
   
   def player?
     id == 1
+  end
+
+  def gain_keyword id
+
   end
 end
 
@@ -109,7 +169,7 @@ class Keyword < Model
   has_many :dialogue
 
   def meet_requirements?
-    result = EvalEnv.eval requirement, p: Character.find(1), n: Character.find(character_id)
+    result = EvalEnv.eval requirement, p: Character[1], n: Character[character_id]
     result == false ? false : true
   end
 end
