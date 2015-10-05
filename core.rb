@@ -1,3 +1,4 @@
+#encoding: utf-8
 
 class Model
   attr_accessor :data
@@ -24,11 +25,11 @@ class Model
     end
 
     def marshal_load
-      load_from_hash Marshal.load(File.open("#{self.name}.data"){|f| f.read })
+      load_from_hash Marshal.load(File.open("lille/#{self.name}.data"){|f| f.read })
     end
 
     def marshal_dump
-      File.open("#{self.name}.data", 'wb'){|f| f.write Marshal.dump(@all_items.collect(&:data))}
+      File.open("lille/#{self.name}.data", 'wb'){|f| f.write Marshal.dump(@all_items.collect(&:data))}
     end
 
     def all
@@ -82,7 +83,7 @@ class Model
     end
 
     def method_missing name, *arr, &block
-      self.first.public_send(name, *arr, &block) and return if self.size == 1
+      return self.first.public_send(name, *arr, &block) if self.size == 1
       raise "undefined method #{name} of #{self}"
     end
 
@@ -99,13 +100,15 @@ class << EvalEnv
 end
 
 State = Hash.new
-class << CheckPoint
+State[:keywords] = ['自我介绍']
+
+class << State
   def marshal_load
-    self.clear.merge Marshal.load(File.open("State.data"){|f| f.read })
+    self.clear.merge Marshal.load(File.open("lille/State.data"){|f| f.read })
   end
 
   def marshal_dump
-    File.open("State.data", 'wb'){|f| f.write Marshal.dump(self)}
+    File.open("lille/State.data", 'wb'){|f| f.write Marshal.dump(self)}
   end
 end
 
@@ -142,7 +145,7 @@ class Drama < Model
   end
 
   def started?
-    !CheckPoint[:drama][id].nil?
+    !State[:drama][id].nil?
   end
 
 end
@@ -162,6 +165,21 @@ class Character < Model
   def gain_keyword id
 
   end
+
+  def greeting
+    keyword.find(name: '问候').shuffle.first.dialogue
+  end
+
+  def talk
+    $game_message.continue = true
+    RM.show_message(content: self.appearance)
+    RM.show_message(self.greeting.to_msg)
+    kw = RM.select_keyword
+    dlgs = keyword.find(name: kw).first.dialogue
+    dlgs.map!(&:to_msg)
+    RM.show_messages(dlgs)
+    $game_message.continue = false
+  end
 end
 
 class Keyword < Model
@@ -176,4 +194,7 @@ end
 
 class Dialogue < Model
   belongs_to :keyword
+  def to_msg
+    {content: content, actor_name: Character[actor.to_i].name}
+  end
 end

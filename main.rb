@@ -49,15 +49,13 @@ class Window_KeyWordItem < Window_ItemList
   end
 
   def on_cancel
-    p 1
     $game_message.current_keyword = nil
     $game_message.selecting_keyword = false
     close
   end
 
   def make_item_list
-    @data = ["t1", "t2", "t3"]
-    @data.push(nil) if include?(nil)
+    @data = State[:keywords]
   end
 
   def draw_item(index)
@@ -85,10 +83,10 @@ class Window_MessageName < Window_Base
   def draw_actor_name(name)
     contents.clear
     if name != ''
-      self.visible = true
+      self.openness = 255
       draw_text_ex 0, 0, name
     else
-      self.visible = false
+      self.openness = 0
     end
   end
 
@@ -129,7 +127,7 @@ class Window_Message
   alias :old_open_and_wait :open_and_wait
   def open_and_wait
     if !open?
-      @name_window.open
+      #@name_window.open
       old_open_and_wait
     end
   end
@@ -142,16 +140,28 @@ class Window_Message
     end
   end
   
-  alias :old_process_character :process_character
   def process_character(c, text, pos)
-    if c == '`'
+    case c
+    when '`'    # 名字
       sign_pos = text.index '`'
       name = text[0...sign_pos]
       text.slice!(0..sign_pos)
       @name_window.draw_actor_name(name)
-      old_process_character(text.slice!(0,1), text, pos)
-    else
-      old_process_character(c, text, pos)
+    when "\r"   # 回车
+      return
+    when "\n"   # 换行
+      process_new_line(text, pos)
+    when "\f"   # 翻页
+      process_new_page(text, pos)
+    when "\e"   # 控制符
+      process_escape_character(obtain_escape_code(text), text, pos)
+    else        # 普通文字
+      if pos[:x] + text_size(c).width > contents_width
+        process_new_line(text, pos)
+        process_normal_character(c, pos)
+      else
+        process_normal_character(c, pos)
+      end
     end
   end
 
@@ -172,13 +182,13 @@ end
 
 module RM
   def self.show_messages messages
-    $game_message.continue = true
     messages.each{|m| show_message m }
-    $game_message.continue = false
   end
 
   def self.show_message message
+    message[:content] ||= ''
     name_code = message[:actor_name] ? "`#{message[:actor_name]}`" : "``"
+    p name_code + message[:content]
     $game_message.add(name_code + message[:content])
     Fiber.yield while $game_message.busy?
   end
@@ -186,6 +196,7 @@ module RM
   def self.select_keyword
     $game_message.selecting_keyword = true
     Fiber.yield while $game_message.busy?
+    $game_message.current_keyword
   end
 
 end
@@ -193,12 +204,12 @@ end
 module Foo
   def self.bar
     $game_message.continue = true
-    a = {content: '123', actor_name: '埃里克'}
+    a = {content: '这是一段很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长的文字', actor_name: '埃里克'}
     b = {content: '2332131', actor_name: nil}
-    #c = {content: '2331', actor_name: '123'}
+    c = {content: '2331', actor_name: '123'}
     RM.show_message a
-    RM.select_keyword
-    RM.show_message b
+    keyword = RM.select_keyword
+    RM.show_message c
     $game_message.continue = false
   end
 
