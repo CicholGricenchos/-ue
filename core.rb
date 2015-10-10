@@ -1,19 +1,21 @@
 #encoding: utf-8
 
+=begin
 module RM
   def self.show_messages messages
     p messages
   end
 
   def self.show_message message
-    p message
+    puts message[:content]
   end
 
   def self.select_keyword
-    'Test'
+    nil
   end
 
 end
+=end
 
 EvalEnv = Object.new
 class << EvalEnv
@@ -43,6 +45,29 @@ class Character
         Character.all_items.find{|x| x.name == param}
       end
     end
+
+    def load_from_marshal
+      recover = lambda do |obj|
+        case obj
+        when String
+          obj.split('.').map{|x| x.to_i.chr(Encoding.find('utf-8'))}.join
+        when Array
+          obj.map{|x| recover[x]}
+        when Hash
+          new_hash = {}
+          obj.each do |k,v|
+            new_hash[recover[k]] = recover[v]
+          end
+          new_hash
+        else obj
+        end
+      end
+      path = "#{File.dirname(__FILE__)}/Characters.data"
+      File.open(path, 'r:utf-8') do |f|
+        characters = recover.call(Marshal.load(f.read))
+        characters.each{|c| Character.new c}
+      end
+    end
   end
 
   attr_accessor :id, :name, :appearance, :keywords
@@ -55,8 +80,10 @@ class Character
     self.class.all_items << self
   end
 
-  def ask(keyword)
-    dialogues = keywords.find{|x| x.name == keyword}.dialogues
+  def ask(keyword_name)
+    keyword = keywords.find{|x| x.name == keyword_name}
+    ask "不明" and return if !keyword
+    dialogues = keyword.dialogues
     dialogues.select!(&:meet_requirement?)
     if dialogue = dialogues.find{|x| x.meet_requirement? == :force}
     else
@@ -68,9 +95,14 @@ class Character
   def talk
     #$game_message.continue = true
     RM.show_message(content: appearance)
-    ask 'Greeting'
-    kw = RM.select_keyword
-    ask kw
+    ask '问候'
+    while true
+      RM.show_message(content: '（看着我的方向。）', actor_name: self.name)
+      kw = RM.select_keyword
+      break if kw.nil?
+      ask kw
+    end
+    RM.show_message(content: "结束了与#{self.name}的对话。")
     #$game_message.continue = false
   end
 
@@ -137,26 +169,7 @@ class Line
   end
 end
 
-require 'yaml'
-require 'pp'
+Character.load_from_marshal
 
-yml = <<EOF
-Character:
-  id: 123
-  name: dare
-  keywords:
-    Greeting:
-      - lines:
-          - tetet
-
-      - requirement: force if nil.nil?
-        lines:
-          - script: puts 1
-
-    Test:
-      - text
-      - ok
-EOF
-
-Character.new(YAML.load(yml))
-Character[123].talk
+State = Hash.new
+State[:keywords] = ['自我介绍']

@@ -1,0 +1,9 @@
+Character:
+    id: 2
+    name: 纳乐
+    appearance: （此处应有外貌描写）
+    keywords:
+        不明:
+            - 嗯？那是什么？
+        问候:
+            - 你好
