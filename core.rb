@@ -47,24 +47,9 @@ class Character
     end
 
     def load_from_marshal
-      recover = lambda do |obj|
-        case obj
-        when String
-          obj.split('.').map{|x| x.to_i.chr(Encoding.find('utf-8'))}.join
-        when Array
-          obj.map{|x| recover[x]}
-        when Hash
-          new_hash = {}
-          obj.each do |k,v|
-            new_hash[recover[k]] = recover[v]
-          end
-          new_hash
-        else obj
-        end
-      end
       path = "#{File.dirname(__FILE__)}/Characters.data"
-      File.open(path, 'r:utf-8') do |f|
-        characters = recover.call(Marshal.load(f.read))
+      File.open(path, 'rb:utf-8') do |f|
+        characters = Marshal.load(f.read)
         characters.each{|c| Character.new c}
       end
     end
@@ -93,7 +78,7 @@ class Character
   end
 
   def talk
-    #$game_message.continue = true
+    $game_message.continue = true
     RM.show_message(content: appearance)
     ask '问候'
     while true
@@ -102,8 +87,9 @@ class Character
       break if kw.nil?
       ask kw
     end
+    ask '结束对话'
     RM.show_message(content: "结束了与#{self.name}的对话。")
-    #$game_message.continue = false
+    $game_message.continue = false
   end
 
 end

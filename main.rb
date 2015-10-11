@@ -66,6 +66,20 @@ class Window_KeyWordItem < Window_ItemList
       draw_text_ex(rect.x, rect.y, item)
     end
   end
+
+  def process_ok
+    if current_item_enabled?
+      Input.update
+      deactivate
+      call_ok_handler
+    end
+  end
+
+  def process_cancel
+    Input.update
+    deactivate
+    call_cancel_handler
+  end
 end
 
 
