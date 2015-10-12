@@ -196,21 +196,31 @@ end
 
 
 class Scene_Map
+  def update_per_second
+    super
+    Trigger.trigger_free_move
+  end
+end
+
+class Scene_Base
   alias :old_update :update
   def update
     old_update
-    if @counter == 0
-      Player.fiber_trigger(:free_move)
-      @counter = 60
+    if @@counter == 0
+      update_per_second
     else
-      @counter -= 1
+      @@counter -= 1
     end
+  end
+
+  def update_per_second
+    State.save_to_marshal
   end
 
   alias :old_initialize :initialize
   def initialize
     old_initialize
-    @counter = 0
+    @@counter = 0
   end
 end
 
@@ -225,6 +235,13 @@ module RM
     p name_code + message[:content]
     $game_message.add(name_code + message[:content])
     Fiber.yield while $game_message.busy?
+  end
+
+  def self.show_message_without_confirm message
+    message[:content] ||= ''
+    name_code = message[:actor_name] ? "`#{message[:actor_name]}`" : "``"
+    p name_code + message[:content]
+    $game_message.add(name_code + message[:content])
   end
 
   def self.select_keyword

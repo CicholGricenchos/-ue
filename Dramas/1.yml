@@ -1,0 +1,12 @@
+Drama:
+  id: 1
+  name: 
+  sections: 
+    - trigger: [talk, 2]
+      lines: 
+        - text
+        - text
+        - text
+    - trigger: [free_move]
+      lines:
+        - txt
