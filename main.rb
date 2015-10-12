@@ -55,7 +55,7 @@ class Window_KeyWordItem < Window_ItemList
   end
 
   def make_item_list
-    @data = State[:keywords]
+    @data = Player.keywords
   end
 
   def draw_item(index)
@@ -191,6 +191,26 @@ class Window_Message
   def input_keyword
     @keyword_window.start
     Fiber.yield while @keyword_window.active
+  end
+end
+
+
+class Scene_Map
+  alias :old_update :update
+  def update
+    old_update
+    if @counter == 0
+      Player.fiber_trigger(:free_move)
+      @counter = 60
+    else
+      @counter -= 1
+    end
+  end
+
+  alias :old_initialize :initialize
+  def initialize
+    old_initialize
+    @counter = 0
   end
 end
 

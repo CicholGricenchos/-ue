@@ -30,6 +30,56 @@ class << EvalEnv
 end
 
 Player = Object.new
+class << Player
+  attr_accessor :state, :handlers
+  def load_from_marshal
+    path = "#{File.dirname(__FILE__)}/Player.data"
+    if File.exist? path
+    else
+      self.init
+    end
+  end
+
+  def init
+    @state = {}
+    @state[:keywords] = []
+    @handlers = {}
+    @handlers[:free_move] = []
+    @handlers[:free_move] << lambda { gain_keyword "自我介绍" }
+    @handlers[:talk] = []
+    @handlers[:talk] << lambda{|character|  RM.show_message(content: 'abc')}
+    @fiber = Fiber.new do
+      loop do
+        name, *args = Fiber.yield
+        exec_handler(name, *args)
+      end
+    end
+    @fiber.resume
+  end
+
+  def exec_handler(name, *args)
+    if handler = @handlers[name].shift
+      handler.call(*args)
+    end
+  end
+
+  def gain_keyword(str)
+    keywords << str
+    RM.show_message(content: "获得了关键词「#{str}」")
+  end
+
+  def fiber_trigger(name, *args)
+    @fiber.resume(name, *args)
+  end
+
+  def trigger(name, *args)
+    exec_handler(name, *args)
+  end
+
+  def keywords
+    @state[:keywords]
+  end
+end
 
 class Character
 
@@ -78,6 +128,7 @@ class Character
   end
 
   def talk
+    return if Player.trigger(:talk, self) == :cancel
     $game_message.continue = true
     RM.show_message(content: appearance)
     ask '问候'
@@ -156,6 +207,7 @@ class Line
 end
 
 Character.load_from_marshal
+Player.init
 
 State = Hash.new
 State[:keywords] = ['自我介绍']
